@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  nlp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: palash-mtb-mle-nlp
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: python -m pip --version

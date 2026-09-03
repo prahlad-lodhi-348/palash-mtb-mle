@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Model artifacts
+nlp_models/models/*.onnx
+nlp_models/models/*.bin
+nlp_models/models/*.safetensors
+
+# Environment
+.env
+.env.*
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Flutter build artifacts
+android_app/build/
+android_app/.dart_tool/
+android_app/.packages
+android_app/pubspec.lock
+
+# Large generated outputs
+*.zip
+*.tar.gz

@@ -30,25 +30,25 @@ class HomePage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('PALASH MTB-MLE'),
       ),
-      body: const Center(
+      body: Center(
         child: Padding(
-          padding: EdgeInsets.all(24.0),
+          padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.school, size: 80, color: Colors.teal),
-              SizedBox(height: 20),
-              Text(
+              const Icon(Icons.school, size: 80, color: Colors.teal),
+              const SizedBox(height: 20),
+              const Text(
                 'Mother Tongue-Based Multilingual Education',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: 12),
-              Text(
+              const SizedBox(height: 12),
+              const Text(
                 'Tablet app scaffold ready for lesson flow, worksheets, and AI language support.',
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(context).push(MaterialPageRoute(

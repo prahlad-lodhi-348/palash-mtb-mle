@@ -1,5 +1,3 @@
-package com.palash.mtbmle.palash_app
-
+package com.palash.mtbmle
 import io.flutter.embedding.android.FlutterActivity
-
 class MainActivity : FlutterActivity()

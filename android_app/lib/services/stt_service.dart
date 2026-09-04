@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'vosk_stt_service.dart';
 
 abstract class SttService {
   Future<String> listenOnce();
@@ -12,4 +13,6 @@ class StubSttService implements SttService {
   }
 }
 
-SttService createSttService() => StubSttService();
+SttService createSttService() => VoskSttService(
+  modelAssetPath: 'assets/models/vosk-model-small-hi-0.22.zip',
+);

@@ -31,3 +31,6 @@ flutter:
     - family: NotoSansOlChiki
       fonts:
         - asset: assets/fonts/NotoSansOlChiki-Regular.ttf
+dependencies:
+  vosk_flutter: ^0.3.48
+  permission_handler: ^11.3.1

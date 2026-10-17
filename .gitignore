@@ -30,3 +30,10 @@ android_app/pubspec.lock
 # Large generated outputs
 *.zip
 *.tar.gz
+android/gradle.properties
+
+nlp_models/onnx_export/
+nlp_models/onnx_export_int8/
+
+nlp_models/onnx_export/
+nlp_models/onnx_export_int8/

@@ -2,5 +2,7 @@
 torch==2.4.1
 transformers==4.44.2
 sentencepiece==0.2.0
-sacremoses
-git+https://github.com/VarunGumma/IndicTransToolkit.git
+sacremoses==0.1.1
+onnx==1.16.2
+onnxruntime==1.19.2
+git+https://github.com/VarunGumma/IndicTransToolkit.git@3efb8418d0721b4ce267c2b3586899d313191357

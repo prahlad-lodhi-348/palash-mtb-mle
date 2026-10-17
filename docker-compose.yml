@@ -1,5 +1,3 @@
-
-
 services:
   nlp:
     build:
@@ -9,4 +7,10 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    command: python nlp_models/test_indictrans2_hi_sat.py
+      - hf_cache:/root/.cache/huggingface
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    command: python nlp_models/export_onnx_indictrans2.py
+
+volumes:
+  hf_cache:

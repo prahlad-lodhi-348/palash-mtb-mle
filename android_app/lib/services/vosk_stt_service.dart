@@ -1,60 +1,68 @@
+import 'dart:async';
 import 'dart:convert';
-import 'stt_service.dart';
-import 'package:vosk_flutter/vosk_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:vosk_flutter/vosk_flutter.dart';
+import 'stt_service.dart';
+
+Future<bool> requestMicPermission() async {
+  final status = await Permission.microphone.request();
+  return status.isGranted;
+}
 
 class VoskSttService implements SttService {
-  final String modelAssetPath; // e.g. 'assets/models/vosk-model-small-hi-0.22.zip'
+  final String modelAssetPath;
   final int sampleRate;
 
   VoskSttService({required this.modelAssetPath, this.sampleRate = 16000});
 
-  late final VoskFlutterPlugin _vosk;
-  Model? _model;
-  Recognizer? _recognizer;
-  SpeechService? _speechService;
-  bool _initialized = false;
+  // Static on purpose: the native plugin allows only ONE SpeechService per
+  // process, and every page rebuild creates a new VoskSttService object.
+  static SpeechService? _speechService;
+  static Future<void>? _initFuture;
+  static bool _busy = false;
 
-  Future<void> init() async {
-    if (_initialized) return;
-    _vosk = VoskFlutterPlugin.instance();
+  Future<void> init() {
+    return _initFuture ??= _doInit().catchError((Object e) {
+      _initFuture = null; // allow a retry after a failure
+      throw e;
+    });
+  }
 
+  Future<void> _doInit() async {
+    final vosk = VoskFlutterPlugin.instance();
     final modelPath = await ModelLoader().loadFromAssets(modelAssetPath);
-    _model = await _vosk.createModel(modelPath);
-    _recognizer = await _vosk.createRecognizer(
-      model: _model!,
-      sampleRate: sampleRate,
-    );
-    _speechService = await _vosk.initSpeechService(_recognizer!);
-    _initialized = true;
+    final model = await vosk.createModel(modelPath);
+    final recognizer =
+        await vosk.createRecognizer(model: model, sampleRate: sampleRate);
+    _speechService = await vosk.initSpeechService(recognizer);
   }
 
   @override
   Future<String> listenOnce() async {
-    final micStatus = await Permission.microphone.request();
-    if (!micStatus.isGranted) {
-      throw Exception('Microphone permission denied');
-    }
-
-    if (!_initialized) {
+    if (_busy) return '';
+    _busy = true;
+    try {
+      final mic = await Permission.microphone.request();
+      if (!mic.isGranted) throw Exception('Microphone permission denied');
       await init();
+
+      final service = _speechService!;
+      final completer = Completer<String>();
+      final sub = service.onResult().listen((json) {
+        final text = _extractText(json);
+        if (text.isNotEmpty && !completer.isCompleted) completer.complete(text);
+      });
+
+      await service.start();
+      await Future.delayed(const Duration(seconds: 4));
+      await service.stop();
+      await Future.delayed(const Duration(milliseconds: 300));
+      await sub.cancel();
+
+      return completer.isCompleted ? await completer.future : '';
+    } finally {
+      _busy = false;
     }
-
-    final completer = _Completer<String>();
-    final sub = _speechService!.onResult().listen((resultJson) {
-      final text = _extractText(resultJson);
-      if (text.isNotEmpty) {
-        completer.complete(text);
-      }
-    });
-
-    await _speechService!.start();
-    // Simple fixed-window listen; replace with silence-detection later.
-    await Future.delayed(const Duration(seconds: 4));
-    await _speechService!.stop();
-    await sub.cancel();
-
-    return completer.isCompleted ? completer.value : '';
   }
 
   String _extractText(String resultJson) {
@@ -66,56 +74,5 @@ class VoskSttService implements SttService {
     }
   }
 
-  Future<void> dispose() async {
-    await _speechService?.stop();
-    _initialized = false;
-  }
+  Future<void> dispose() async {} // shared for the whole process lifetime
 }
-
-// Small helper since Dart's Completer can't be read before completion
-class _Completer<T> {
-  T? _value;
-  bool isCompleted = false;
-  void complete(T v) {
-    if (!isCompleted) {
-      _value = v;
-      isCompleted = true;
-    }
-  }
-  T get value => _value as T;
-}
-// import 'stt_service.dart';
-// import 'package:permission_handler/permission_handler.dart';
-
-// Future<bool> requestMicPermission() async {
-//   final status = await Permission.microphone.request();
-//   return status.isGranted;
-// }
-// /// Vosk STT integration wrapper.
-// ///
-// /// This file provides a minimal `VoskSttService` class that currently falls
-// /// back to `StubSttService`. Replace the `listenOnce` implementation with a
-// /// real Vosk plugin call when adding the native model and plugin.
-// /// See `android_app/android_vosk_integration.md` for platform setup steps.
-// class VoskSttService implements SttService {
-//   final String modelAssetPath;
-
-//   VoskSttService({required this.modelAssetPath});
-
-//   /// Initialize model/resources if needed.
-//   Future<void> init() async {
-//     // TODO: load Vosk model from assets or file system.
-//   }
-
-//   @override
-//   Future<String> listenOnce() async {
-//     // TODO: Replace this stubbed behavior with actual Vosk recognition.
-//     // For now, delegate to the stub so the app can run without native setup.
-//     return StubSttService().listenOnce();
-//   }
-
-//   /// Dispose/cleanup resources if required by the plugin
-//   Future<void> dispose() async {
-//     // TODO: cleanup
-//   }
-// }

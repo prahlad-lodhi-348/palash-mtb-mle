@@ -1,47 +1,64 @@
 import 'package:flutter/services.dart' show rootBundle;
 
-/// Simple translation service interface and a small offline dictionary stub.
+/// Translation service interface and offline dictionary implementation.
 abstract class TranslationService {
-  /// Translate Hindi text to Santhali (Ol Chiki) or return best-effort string.
   Future<TranslationResult> translateHindiToSanthali(String hindi);
 }
 
 class TranslationResult {
-  final String translated;
-  final double confidence; // 0.0 - 1.0
+  final String translated; // Ol Chiki script — for display
+  final String transliteration; // Devanagari approximation — for Hindi TTS to speak
+  final double confidence;
+  final List<String> unknownWords;
+  final bool isFullPhraseMatch;
+  final String source; // 'dict' or 'onnx' — which engine produced this
 
-  TranslationResult(this.translated, this.confidence);
+  TranslationResult(
+    this.translated,
+    this.confidence, {
+    this.transliteration = '',
+    this.unknownWords = const [],
+    this.isFullPhraseMatch = false,
+    this.source = 'dict',
+  });
+
+  bool get isFullyTranslated => unknownWords.isEmpty;
+  bool get hasSpeakableAudio => transliteration.isNotEmpty;
 }
 
 class StubTranslationService implements TranslationService {
-  // Maps loaded from asset CSV
-  static final Map<String, String> _dict = {};
+  static final Map<String, String> _dict = {}; // hindi -> ol chiki
+  static final Map<String, String> _translit = {}; // hindi -> devanagari transliteration
   static final Map<String, double> _conf = {};
   static bool _loaded = false;
+
+  static const String _dictionaryAsset =
+      'assets/dictionaries/hindi_santhali_500.csv'; // TODO: rename once dictionary is actually expanded
 
   Future<void> _ensureLoaded() async {
     if (_loaded) return;
     try {
-      final csv = await rootBundle.loadString('assets/dictionaries/hindi_santhali_500.csv');
+      final csv = await rootBundle.loadString(_dictionaryAsset);
       final lines = csv.split(RegExp(r'\r?\n'));
+      // Expected header: hindi,transliteration,santhali_ol_chiki,confidence
       for (var i = 1; i < lines.length; i++) {
         final line = lines[i].trim();
         if (line.isEmpty) continue;
         final parts = line.split(',');
-        if (parts.isEmpty) continue;
+        if (parts.length < 3) continue; // need at least hindi, translit, ol chiki
+
         final hindi = parts[0].trim();
-        final santhali = parts.length > 1 ? parts[1].trim() : '';
-        double conf = 0.0;
-        if (parts.length > 2) {
+        final translit = parts[1].trim();
+        final santhali = parts[2].trim();
+        double conf = santhali.isNotEmpty ? 1.0 : 0.0;
+        if (parts.length > 3) {
           try {
-            conf = double.parse(parts[2].trim());
-          } catch (_) {
-            conf = santhali.isNotEmpty ? 1.0 : 0.0;
-          }
-        } else {
-          conf = santhali.isNotEmpty ? 1.0 : 0.0;
+            conf = double.parse(parts[3].trim());
+          } catch (_) {}
         }
+
         _dict[hindi] = santhali;
+        _translit[hindi] = translit;
         _conf[hindi] = conf;
       }
     } catch (e) {
@@ -53,20 +70,55 @@ class StubTranslationService implements TranslationService {
   @override
   Future<TranslationResult> translateHindiToSanthali(String hindi) async {
     await _ensureLoaded();
-    final tokens = hindi.split(RegExp(r'[\s,।?]+'));
+
+    final trimmedInput = hindi.trim();
+
+    // 1) Try exact full-phrase match first.
+    final directMatch = _dict[trimmedInput];
+    if (directMatch != null && directMatch.isNotEmpty) {
+      return TranslationResult(
+        directMatch,
+        _conf[trimmedInput] ?? 1.0,
+        transliteration: _translit[trimmedInput] ?? '',
+        isFullPhraseMatch: true,
+      );
+    }
+
+    // 2) Fall back to word-by-word lookup.
+    final tokens = trimmedInput
+        .split(RegExp(r'[\s,।?]+'))
+        .where((t) => t.isNotEmpty)
+        .toList();
+
+    if (tokens.isEmpty) {
+      return TranslationResult('', 0.0);
+    }
+
     final translatedTokens = <String>[];
+    final translitTokens = <String>[];
+    final unknownWords = <String>[];
     double totalConf = 0.0;
+
     for (final t in tokens) {
       final san = _dict[t];
       if (san != null && san.isNotEmpty) {
         translatedTokens.add(san);
+        translitTokens.add(_translit[t] ?? '');
         totalConf += (_conf[t] ?? 1.0);
       } else {
-        translatedTokens.add(t);
+        unknownWords.add(t);
       }
     }
+
     final out = translatedTokens.join(' ');
-    final conf = tokens.isEmpty ? 0.0 : (totalConf / tokens.length).clamp(0.0, 1.0);
-    return TranslationResult(out, conf);
+    final translitOut = translitTokens.where((t) => t.isNotEmpty).join(' ');
+    final conf = (totalConf / tokens.length).clamp(0.0, 1.0);
+
+    return TranslationResult(
+      out,
+      conf,
+      transliteration: translitOut,
+      unknownWords: unknownWords,
+    );
   }
 }

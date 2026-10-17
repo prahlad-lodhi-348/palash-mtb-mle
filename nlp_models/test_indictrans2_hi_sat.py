@@ -21,10 +21,20 @@ Language codes (FLORES-200 style, required by IndicTrans2):
     Santali -> "sat_Olck"   (Ol Chiki script)
 """
 
+import os
 import time
 import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 from IndicTransToolkit import IndicProcessor
+
+HF_TOKEN = os.environ.get("HF_TOKEN")
+if not HF_TOKEN:
+    raise SystemExit(
+        "HF_TOKEN environment variable not set.\n"
+        "1) Request access: https://huggingface.co/ai4bharat/indictrans2-indic-indic-dist-320M\n"
+        "2) Create a read token: https://huggingface.co/settings/tokens\n"
+        "3) Put it in your .env file as HF_TOKEN=hf_xxxxx"
+    )
 
 MODEL_NAME = "ai4bharat/indictrans2-indic-indic-dist-320M"
 SRC_LANG = "hin_Deva"
@@ -46,8 +56,8 @@ def main():
     print(f"Loading tokenizer + model: {MODEL_NAME}")
     print("(first run will download ~1.2GB, may take a while)\n")
 
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
-    model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True, token=HF_TOKEN)
+    model = AutoModelForSeq2SeqLM.from_pretrained(MODEL_NAME, trust_remote_code=True, token=HF_TOKEN)
     model.eval()
 
     ip = IndicProcessor(inference=True)

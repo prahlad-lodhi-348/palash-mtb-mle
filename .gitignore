@@ -37,3 +37,5 @@ nlp_models/onnx_export_int8/
 
 nlp_models/onnx_export/
 nlp_models/onnx_export_int8/
+fixtures_run.log
+make_script.sh
